@@ -3,22 +3,25 @@ import { useForm, Controller } from 'react-hook-form';
 import { Input, DatePicker, Select, Button, message } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/shared';
-import { createSprint, getSprintById, updateSprint } from '@/services/api';
+import { createSprint, getSprintById, updateSprint } from '@/services/sprintService';
+import { useOrg } from '@/contexts/OrgContext';
 import { SPRINT_STATUSES } from '@/constants';
 import { calcDays } from '@/utils/helpers';
 import dayjs from 'dayjs';
 import type { Sprint } from '@/types';
+import type { SprintStatus } from '@/constants';
 
 interface FormValues {
   name: string;
   startDate: dayjs.Dayjs | null;
   endDate: dayjs.Dayjs | null;
-  status: Sprint['status'];
+  status: SprintStatus;
 }
 
 const SprintForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { currentOrg } = useOrg();
   const isEdit = !!id;
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: { name: '', startDate: null, endDate: null, status: 'Planning' },
@@ -26,36 +29,47 @@ const SprintForm = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isEdit) {
+    if (isEdit && id) {
       getSprintById(id).then(s => {
         if (s) {
           setValue('name', s.name);
           setValue('startDate', dayjs(s.startDate));
           setValue('endDate', dayjs(s.endDate));
-          setValue('status', s.status);
+          setValue('status', s.status as SprintStatus);
         }
       });
     }
-  }, [id]);
+  }, [id, isEdit, setValue]);
 
   const startDate = watch('startDate');
   const endDate = watch('endDate');
   const lengthDays = startDate && endDate ? calcDays(startDate.format('YYYY-MM-DD'), endDate.format('YYYY-MM-DD')) : 0;
 
   const onSubmit = async (data: FormValues) => {
+    if (!currentOrg) return;
     setLoading(true);
-    const payload = {
-      name: data.name,
-      startDate: data.startDate!.format('YYYY-MM-DD'),
-      endDate: data.endDate!.format('YYYY-MM-DD'),
-      status: data.status,
-      lengthDays,
-    };
-    if (isEdit) await updateSprint(id, payload);
-    else await createSprint(payload);
-    message.success(isEdit ? 'Sprint updated' : 'Sprint created');
-    navigate('/sprints');
-    setLoading(false);
+    try {
+      const payload = {
+        name: data.name,
+        start_date: data.startDate!.format('YYYY-MM-DD'),
+        end_date: data.endDate!.format('YYYY-MM-DD'),
+        status: data.status,
+        length_days: lengthDays,
+      };
+      
+      if (isEdit && id) {
+        await updateSprint(id, payload);
+      } else {
+        await createSprint(currentOrg.id, payload);
+      }
+      
+      message.success(isEdit ? 'Sprint updated' : 'Sprint created');
+      navigate('/sprints');
+    } catch (err: any) {
+      message.error(err.message || 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

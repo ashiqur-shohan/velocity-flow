@@ -69,3 +69,5 @@ export const MiniProgress = ({ value }: { value: number }) => {
   const color = getProductivityColor(value);
   return <Progress percent={value} size="small" strokeColor={color} className="!mb-0" style={{ width: 100 }} />;
 };
+
+export * from './ResourceSprintComment';

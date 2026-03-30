@@ -1,19 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input, Button, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { signIn, session } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  useEffect(() => {
+    if (session) navigate('/dashboard');
+  }, [session, navigate]);
+
+  const handleLogin = async () => {
     if (!email || !password) { message.error('Please fill all fields'); return; }
     setLoading(true);
-    setTimeout(() => { navigate('/dashboard'); setLoading(false); }, 500);
+    try {
+      await signIn(email, password);
+      message.success('Logged in successfully');
+      navigate('/dashboard');
+    } catch (err: any) {
+      message.error(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

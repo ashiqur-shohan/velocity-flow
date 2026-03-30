@@ -2,37 +2,33 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Button, Skeleton, Popover, InputNumber, Select, Table, Input, message, Tooltip } from 'antd';
 import { Plus, Pencil } from 'lucide-react';
-import { getSprintById, getProjects, getResources, getAllocations, getGoals, upsertAllocation, updateGoal, createGoal, deleteGoal } from '@/services/api';
-import { PageHeader, SprintStatusTag, ProductivityBadge, GoalStatusTag, MiniProgress, ResourceAvatar } from '@/components/shared';
+import { useSprintDetail } from '@/hooks/useSprint';
+import { useAllocations } from '@/hooks/useAllocations';
+import { useGoals } from '@/hooks/useGoals';
+import { useComments } from '@/hooks/useComments';
+import { useActiveResources as useResources } from '@/hooks/useResources';
+import { useProjects } from '@/hooks/useProjects';
+import { upsertAllocation } from '@/services/allocationService';
+import { updateGoal, createGoal, deleteGoal } from '@/services/goalService';
+import { upsertSprintResourceComment } from '@/services/commentService';
+import { PageHeader, SprintStatusTag, ProductivityBadge, GoalStatusTag, MiniProgress, ResourceAvatar, ResourceSprintComment } from '@/components/shared';
 import { formatDateRange, calcProductivity } from '@/utils/helpers';
 import { GOAL_STATUSES, ALLOCATION_STATUSES, getProductivityColor } from '@/constants';
-import type { Sprint, Project, Resource, PointAllocation, SprintGoal } from '@/types';
+import type { Sprint, Project, Resource, PointAllocation, SprintGoal, SprintResourceComment } from '@/types';
 import type { GoalStatus, AllocationStatus } from '@/constants';
 
 const SprintDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [sprint, setSprint] = useState<Sprint>();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [allocations, setAllocations] = useState<PointAllocation[]>([]);
-  const [goals, setGoals] = useState<SprintGoal[]>([]);
+  
+  const { sprint, loading: sprintLoading } = useSprintDetail(id);
+  const { projects, loading: projectsLoading } = useProjects();
+  const { resources, loading: resourcesLoading } = useResources();
+  const { allocations, loading: allocationsLoading, refetch: refetchAllocations } = useAllocations(id);
+  const { goals, loading: goalsLoading, setGoals } = useGoals(id);
+  const { comments, loading: commentsLoading, setComments } = useComments(id);
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    const [s, prj, res, alloc, gl] = await Promise.all([
-      getSprintById(id), getProjects(), getResources(), getAllocations(id), getGoals(id),
-    ]);
-    setSprint(s);
-    setProjects(prj);
-    setResources(res.filter(r => r.active));
-    setAllocations(alloc);
-    setGoals(gl);
-    setLoading(false);
-  }, [id]);
-
-  useEffect(() => { load(); }, [load]);
+  const loading = sprintLoading || projectsLoading || resourcesLoading || allocationsLoading || goalsLoading || commentsLoading;
 
   if (loading || !sprint) return <Skeleton active paragraph={{ rows: 12 }} />;
 
@@ -72,7 +68,9 @@ const SprintDetail = () => {
                 resources={sprintResources}
                 allResources={resources}
                 allocations={allocations}
-                setAllocations={setAllocations}
+                refetchAllocations={refetchAllocations}
+                comments={comments}
+                setComments={setComments}
                 totalPlanned={totalPlanned}
                 totalActual={totalActual}
                 overallPct={overallPct}
@@ -94,10 +92,11 @@ const SprintDetail = () => {
 
 // Point Allocation Grid
 const AllocationGrid = ({
-  sprint, projects, allProjects, resources, allResources, allocations, setAllocations, totalPlanned, totalActual, overallPct,
+  sprint, projects, allProjects, resources, allResources, allocations, refetchAllocations, comments, setComments, totalPlanned, totalActual, overallPct,
 }: {
   sprint: Sprint; projects: Project[]; allProjects: Project[]; resources: Resource[]; allResources: Resource[];
-  allocations: PointAllocation[]; setAllocations: (a: PointAllocation[]) => void;
+  allocations: PointAllocation[]; refetchAllocations: () => Promise<void>;
+  comments: SprintResourceComment[]; setComments: (c: SprintResourceComment[]) => void;
   totalPlanned: number; totalActual: number; overallPct: number;
 }) => {
   const [editCell, setEditCell] = useState<{ projectId: string; resourceId: string } | null>(null);
@@ -117,21 +116,13 @@ const AllocationGrid = ({
 
   const saveEdit = async () => {
     if (!editCell) return;
-    const existing = allocations.find(a => a.projectId === editCell.projectId && a.resourceId === editCell.resourceId);
-    const alloc: PointAllocation = {
-      id: existing?.id || `a${Date.now()}`,
-      sprintId: sprint.id,
-      projectId: editCell.projectId,
-      resourceId: editCell.resourceId,
-      planned: editPlanned,
-      actual: editActual,
+    const payload = {
+      planned_points: editPlanned,
+      actual_points: editActual,
       status: editStatus,
     };
-    await upsertAllocation(alloc);
-    const updated = existing
-      ? allocations.map(a => a.id === existing.id ? alloc : a)
-      : [...allocations, alloc];
-    setAllocations(updated);
+    await upsertAllocation(sprint.id, editCell.projectId, editCell.resourceId, payload);
+    await refetchAllocations();
     setEditCell(null);
     message.success('Saved');
   };
@@ -170,14 +161,29 @@ const AllocationGrid = ({
         <thead>
           <tr>
             <th className="text-left p-3 bg-muted font-semibold border border-border min-w-[180px]">Project</th>
-            {localResources.map(r => (
-              <th key={r.id} className="text-center p-3 bg-muted font-semibold border border-border min-w-[100px]">
-                <div className="flex flex-col items-center gap-1">
-                  <ResourceAvatar name={r.name} size={28} />
-                  <span className="text-xs">{r.name}</span>
-                </div>
-              </th>
-            ))}
+            {localResources.map(r => {
+              const resourceComment = comments.find(c => c.resourceId === r.id)?.comment || '';
+              return (
+                <th key={r.id} className="text-center p-3 bg-muted font-semibold border border-border min-w-[120px]">
+                  <div className="flex flex-col items-center gap-1">
+                    <ResourceSprintComment
+                      sprintId={sprint.id}
+                      resourceId={r.id}
+                      comment={resourceComment}
+                      onSave={async (text) => {
+                        const updated = await upsertSprintResourceComment(sprint.id, r.id, text);
+                        setComments(comments.some(c => c.id === updated.id) 
+                          ? comments.map(c => c.id === updated.id ? updated : c)
+                          : [...comments, updated]
+                        );
+                      }}
+                    />
+                    <ResourceAvatar name={r.name} size={28} />
+                    <span className="text-xs">{r.name}</span>
+                  </div>
+                </th>
+              );
+            })}
             <th className="text-center p-3 bg-muted font-bold border border-border min-w-[100px]">Total</th>
           </tr>
         </thead>

@@ -1,36 +1,43 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Drawer, Input, Switch, Tag, message, Skeleton } from 'antd';
 import { Plus } from 'lucide-react';
-import { getResources, createResource, updateResource } from '@/services/api';
+import { useResources } from '@/hooks/useResources';
+import { createResource, updateResource } from '@/services/resourceService';
+import { useOrg } from '@/contexts/OrgContext';
 import { PageHeader, ResourceAvatar } from '@/components/shared';
 import type { Resource } from '@/types';
 
 const Resources = () => {
-  const [loading, setLoading] = useState(true);
-  const [resources, setResources] = useState<Resource[]>([]);
+  const { currentOrg } = useOrg();
+  const { resources, loading: resourcesLoading, refetch: refetchResources } = useResources();
+  const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editRes, setEditRes] = useState<Resource | null>(null);
   const [form, setForm] = useState({ name: '', designation: '', team: '', active: true });
-
-  useEffect(() => { getResources().then(r => { setResources(r); setLoading(false); }); }, []);
 
   const openCreate = () => { setEditRes(null); setForm({ name: '', designation: '', team: '', active: true }); setDrawerOpen(true); };
   const openEdit = (r: Resource) => { setEditRes(r); setForm({ name: r.name, designation: r.designation, team: r.team, active: r.active }); setDrawerOpen(true); };
 
   const save = async () => {
-    if (!form.name) { message.error('Name required'); return; }
-    if (editRes) {
-      await updateResource(editRes.id, form);
-      setResources(resources.map(r => r.id === editRes.id ? { ...r, ...form } : r));
-    } else {
-      const r = await createResource(form);
-      setResources([...resources, r]);
+    if (!form.name || !currentOrg) { message.error('Name required'); return; }
+    try {
+      setLoading(true);
+      if (editRes) {
+        await updateResource(editRes.id, form);
+      } else {
+        await createResource(currentOrg.id, form);
+      }
+      await refetchResources();
+      setDrawerOpen(false);
+      message.success('Saved');
+    } catch (err: any) {
+      message.error(err.message || 'Failed to save');
+    } finally {
+      setLoading(false);
     }
-    setDrawerOpen(false);
-    message.success('Saved');
   };
 
-  if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;
+  if (resourcesLoading) return <Skeleton active paragraph={{ rows: 8 }} />;
 
   return (
     <div>

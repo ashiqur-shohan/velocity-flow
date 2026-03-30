@@ -2,36 +2,52 @@ import { useEffect, useState } from 'react';
 import { Card, Skeleton, Table, Tag } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Target, Activity, Zap } from 'lucide-react';
-import { getSprints, getProjects, getResources, getAllocations, getGoals } from '@/services/api';
+import { useSprints } from '@/hooks/useSprint';
+import { useProjects } from '@/hooks/useProjects';
+import { useResources } from '@/hooks/useResources';
+import { getSprintAllocations } from '@/services/allocationService';
+import { getSprintGoals } from '@/services/goalService';
 import { PageHeader, ProductivityBadge, MiniProgress, GoalStatusTag } from '@/components/shared';
 import { calcProductivity, formatDateRange } from '@/utils/helpers';
 import type { Sprint, Project, Resource, PointAllocation, SprintGoal } from '@/types';
 import dayjs from 'dayjs';
 
 const Dashboard = () => {
-  const [loading, setLoading] = useState(true);
-  const [sprint, setSprint] = useState<Sprint>();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [allocations, setAllocations] = useState<PointAllocation[]>([]);
-  const [goals, setGoals] = useState<SprintGoal[]>([]);
+  const { sprints, loading: sprintsLoading } = useSprints();
+  const { projects, loading: projectsLoading } = useProjects();
+  const { resources, loading: resourcesLoading } = useResources();
+  const [sprint, setSprint] = useState<any>();
+  const [allocations, setAllocations] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      const [sprints, prj, res] = await Promise.all([getSprints(), getProjects(), getResources()]);
+    const loadDetails = async () => {
+      if (sprintsLoading) return;
       const active = sprints.find(s => s.status === 'Active') || sprints[0];
       setSprint(active);
-      setProjects(prj);
-      setResources(res);
       if (active) {
-        const [alloc, gl] = await Promise.all([getAllocations(active.id), getGoals(active.id)]);
-        setAllocations(alloc);
-        setGoals(gl);
+        try {
+          setLoadingDetails(true);
+          const [alloc, gl] = await Promise.all([
+            getSprintAllocations(active.id),
+            getSprintGoals(active.id)
+          ]);
+          setAllocations(alloc);
+          setGoals(gl);
+        } catch (err) {
+          console.error('Dashboard load error', err);
+        } finally {
+          setLoadingDetails(false);
+        }
+      } else {
+        setLoadingDetails(false);
       }
-      setLoading(false);
     };
-    load();
-  }, []);
+    loadDetails();
+  }, [sprints, sprintsLoading]);
+
+  const loading = sprintsLoading || projectsLoading || resourcesLoading || loadingDetails;
 
   if (loading) return <div className="space-y-4"><Skeleton active /><Skeleton active /><Skeleton active /></div>;
 

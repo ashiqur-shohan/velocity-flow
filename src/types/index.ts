@@ -56,3 +56,11 @@ export interface Member {
   role: MemberRole;
   joinedDate: string;
 }
+
+export interface SprintResourceComment {
+  id: string;
+  sprintId: string;
+  resourceId: string;
+  comment: string;
+  updatedAt?: string;
+}

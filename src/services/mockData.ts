@@ -1,4 +1,4 @@
-import type { Sprint, Project, Resource, PointAllocation, SprintGoal, Member } from '@/types';
+import type { Sprint, Project, Resource, PointAllocation, SprintGoal, Member, SprintResourceComment } from '@/types';
 
 export const mockSprints: Sprint[] = [
   { id: 's1', name: 'Sprint Feb 22 – Mar 25', startDate: '2026-02-22', endDate: '2026-03-25', status: 'Active', lengthDays: 31 },
@@ -69,4 +69,10 @@ export const mockMembers: Member[] = [
   { id: 'm3', name: 'Tarek Hassan', email: 'tarek@velotrack.io', role: 'Developer', joinedDate: '2025-02-15' },
   { id: 'm4', name: 'Mirza Rahman', email: 'mirza@velotrack.io', role: 'Developer', joinedDate: '2025-03-01' },
   { id: 'm5', name: 'Shohan Ali', email: 'shohan@velotrack.io', role: 'Developer', joinedDate: '2025-03-10' },
+];
+
+export const mockSprintResourceComments: SprintResourceComment[] = [
+  { id: 'c1', sprintId: 's1', resourceId: 'r1', comment: 'Testing 5, In progress 10' },
+  { id: 'c2', sprintId: 's1', resourceId: 'r2', comment: 'Testing 17' },
+  { id: 'c3', sprintId: 's1', resourceId: 'r3', comment: 'Testing 1, In progress 7' },
 ];

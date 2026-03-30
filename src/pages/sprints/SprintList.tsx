@@ -2,31 +2,44 @@ import { useEffect, useState } from 'react';
 import { Button, Select, DatePicker, Skeleton, Progress } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Eye, Pencil } from 'lucide-react';
-import { getSprints, getAllocations } from '@/services/api';
+import { useSprints } from '@/hooks/useSprint';
+import { getSprintAllocations } from '@/services/allocationService';
 import { PageHeader, SprintStatusTag, ProductivityBadge, EmptyState } from '@/components/shared';
 import { formatDateRange, calcProductivity } from '@/utils/helpers';
-import type { Sprint, PointAllocation } from '@/types';
 import type { SprintStatus } from '@/constants';
 import { SPRINT_STATUSES } from '@/constants';
 
 const SprintList = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [allocations, setAllocations] = useState<PointAllocation[]>([]);
+  const { sprints, loading: sprintsLoading, error } = useSprints();
+  const [allocations, setAllocations] = useState<any[]>([]);
+  const [loadingAllocations, setLoadingAllocations] = useState(true);
   const [statusFilter, setStatusFilter] = useState<SprintStatus | 'All'>('All');
 
   useEffect(() => {
-    const load = async () => {
-      const [s, a] = await Promise.all([getSprints(), getAllocations()]);
-      setSprints(s);
-      setAllocations(a);
-      setLoading(false);
+    const loadAllAllocations = async () => {
+      if (sprints.length === 0) {
+        setLoadingAllocations(false);
+        return;
+      }
+      try {
+        setLoadingAllocations(true);
+        // Fetch allocations for all sprints in the list
+        // This is a bit heavy, but fits the current UI logic
+        const all = await Promise.all(sprints.map(s => getSprintAllocations(s.id)));
+        setAllocations(all.flat());
+      } catch (err) {
+        console.error('Failed to load allocations', err);
+      } finally {
+        setLoadingAllocations(false);
+      }
     };
-    load();
-  }, []);
+    if (!sprintsLoading) {
+      loadAllAllocations();
+    }
+  }, [sprints, sprintsLoading]);
 
-  if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;
+  if (sprintsLoading || loadingAllocations) return <Skeleton active paragraph={{ rows: 8 }} />;
 
   const filtered = statusFilter === 'All' ? sprints : sprints.filter(s => s.status === statusFilter);
 

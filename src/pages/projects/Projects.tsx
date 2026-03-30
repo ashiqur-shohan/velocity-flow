@@ -1,44 +1,62 @@
 import { useEffect, useState } from 'react';
 import { Button, Select, Drawer, Input, message, Skeleton } from 'antd';
 import { Plus } from 'lucide-react';
-import { getProjects, createProject, updateProject, getAllocations, getSprints } from '@/services/api';
+import { useProjects } from '@/hooks/useProjects';
+import { useSprints } from '@/hooks/useSprint';
+import { getOrgAllocations } from '@/services/allocationService';
+import { createProject, updateProject } from '@/services/projectService';
+import { useOrg } from '@/contexts/OrgContext';
 import { PageHeader, EmptyState } from '@/components/shared';
 import { PROJECT_COLORS, PROJECT_STATUSES } from '@/constants';
 import type { Project, PointAllocation, Sprint } from '@/types';
 import type { ProjectStatus } from '@/constants';
 
 const Projects = () => {
-  const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [allocations, setAllocations] = useState<PointAllocation[]>([]);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const { currentOrg } = useOrg();
+  const { projects, loading: projectsLoading, refetch: refetchProjects } = useProjects();
+  const { sprints, loading: sprintsLoading } = useSprints();
+  const [allocations, setAllocations] = useState<any[]>([]);
+  const [loadingAllocations, setLoadingAllocations] = useState(true);
   const [filter, setFilter] = useState<ProjectStatus | 'All'>('All');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [form, setForm] = useState({ name: '', description: '', color: PROJECT_COLORS[0], status: 'Active' as ProjectStatus });
 
   useEffect(() => {
-    const load = async () => {
-      const [p, a, s] = await Promise.all([getProjects(), getAllocations(), getSprints()]);
-      setProjects(p); setAllocations(a); setSprints(s); setLoading(false);
+    const loadAllocations = async () => {
+      if (!currentOrg) return;
+      try {
+        setLoadingAllocations(true);
+        const data = await getOrgAllocations(currentOrg.id);
+        setAllocations(data);
+      } catch (err) {
+        console.error('Failed to load allocations', err);
+      } finally {
+        setLoadingAllocations(false);
+      }
     };
-    load();
-  }, []);
+    loadAllocations();
+  }, [currentOrg]);
+
+  const loading = projectsLoading || sprintsLoading || loadingAllocations;
 
   const openCreate = () => { setEditProject(null); setForm({ name: '', description: '', color: PROJECT_COLORS[0], status: 'Active' }); setDrawerOpen(true); };
   const openEdit = (p: Project) => { setEditProject(p); setForm({ name: p.name, description: p.description, color: p.color, status: p.status }); setDrawerOpen(true); };
 
   const save = async () => {
-    if (!form.name) { message.error('Name required'); return; }
-    if (editProject) {
-      await updateProject(editProject.id, form);
-      setProjects(projects.map(p => p.id === editProject.id ? { ...p, ...form } : p));
-    } else {
-      const p = await createProject(form);
-      setProjects([...projects, p]);
+    if (!form.name || !currentOrg) { message.error('Name required'); return; }
+    try {
+      if (editProject) {
+        await updateProject(editProject.id, form);
+      } else {
+        await createProject(currentOrg.id, form);
+      }
+      await refetchProjects();
+      setDrawerOpen(false);
+      message.success('Saved');
+    } catch (err: any) {
+      message.error(err.message || 'Failed to save');
     }
-    setDrawerOpen(false);
-    message.success('Saved');
   };
 
   if (loading) return <Skeleton active paragraph={{ rows: 8 }} />;

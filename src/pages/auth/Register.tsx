@@ -1,17 +1,35 @@
 import { useState } from 'react';
 import { Input, Button, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { createOrganization } from '@/services/organizationService';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', org: '' });
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!form.name || !form.email || !form.password || !form.org) { message.error('Fill all fields'); return; }
     if (form.password !== form.confirmPassword) { message.error('Passwords do not match'); return; }
+    
     setLoading(true);
-    setTimeout(() => { navigate('/dashboard'); setLoading(false); }, 500);
+    try {
+      // 1. Sign up user
+      const { user } = await signUp(form.email, form.password, form.name);
+      
+      if (user) {
+        // 2. Create organization and join as admin
+        await createOrganization(form.org, user.id);
+        message.success('Account and Organization created!');
+        navigate('/login');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

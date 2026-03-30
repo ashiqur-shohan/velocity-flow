@@ -1,53 +1,56 @@
 import { useEffect, useState } from 'react';
 import { Select, Card, Table, Skeleton } from 'antd';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getSprints, getProjects, getResources, getAllocations } from '@/services/api';
+import { useSprints } from '@/hooks/useSprint';
+import { useResources } from '@/hooks/useResources';
+import { useResourceReportHook } from '@/hooks/useReports';
 import { PageHeader, ProductivityBadge } from '@/components/shared';
 import { calcProductivity } from '@/utils/helpers';
 import type { Sprint, Project, Resource, PointAllocation } from '@/types';
 
 const ResourceReport = () => {
-  const [loading, setLoading] = useState(true);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [allocations, setAllocations] = useState<PointAllocation[]>([]);
+  const { sprints, loading: sprintsLoading } = useSprints();
+  const { resources, loading: resourcesLoading } = useResources();
   const [selectedResource, setSelectedResource] = useState('');
+  const { data: allocations, loading: reportLoading } = useResourceReportHook(selectedResource);
 
   useEffect(() => {
-    const load = async () => {
-      const [s, p, r, a] = await Promise.all([getSprints(), getProjects(), getResources(), getAllocations()]);
-      setSprints(s); setProjects(p); setResources(r); setAllocations(a);
-      if (r.length > 0) setSelectedResource(r[0].id);
-      setLoading(false);
-    };
-    load();
-  }, []);
+    if (!resourcesLoading && resources.length > 0 && !selectedResource) {
+      setSelectedResource(resources[0].id);
+    }
+  }, [resources, resourcesLoading, selectedResource]);
 
-  if (loading) return <Skeleton active />;
+  const loading = sprintsLoading || resourcesLoading || reportLoading;
 
-  const ra = allocations.filter(a => a.resourceId === selectedResource);
-  const totalPlanned = ra.reduce((s, a) => s + a.planned, 0);
-  const totalActual = ra.reduce((s, a) => s + a.actual, 0);
-  const sprintIds = [...new Set(ra.map(a => a.sprintId))];
-  const avgPct = sprintIds.length > 0 ? sprintIds.reduce((sum, sid) => {
-    const sa = ra.filter(a => a.sprintId === sid);
-    return sum + calcProductivity(sa.reduce((s, a) => s + a.planned, 0), sa.reduce((s, a) => s + a.actual, 0));
-  }, 0) / sprintIds.length : 0;
+  if (loading || !allocations) return <Skeleton active />;
 
-  const velocityData = sprints.map(s => {
-    const sa = ra.filter(a => a.sprintId === s.id);
-    const actual = sa.reduce((sum, a) => sum + a.actual, 0);
-    return actual > 0 ? { sprint: s.name.replace('Sprint ', ''), Actual: actual } : null;
-  }).filter(Boolean);
+  const ra = allocations;
+  const totalPlanned = ra.reduce((s: number, a: any) => s + (a.planned_points || 0), 0);
+  const totalActual = ra.reduce((s: number, a: any) => s + (a.actual_points || 0), 0);
+  const avgPct = totalPlanned > 0 ? (totalActual / totalPlanned) * 100 : 0;
+  const sprintIds = [...new Set(ra.map((a: any) => a.sprint_id))];
+  
+  // Group by sprint for Trend
+  const sprintGrouped = ra.reduce((acc: any, a: any) => {
+    const sName = a.sprint?.name || 'Unknown';
+    if (!acc[sName]) acc[sName] = 0;
+    acc[sName] += (a.actual_points || 0);
+    return acc;
+  }, {});
 
-  const tableData = sprints.flatMap(s => {
-    const sa = ra.filter(a => a.sprintId === s.id);
-    return sa.map(a => ({
-      key: a.id, sprint: s.name, project: projects.find(p => p.id === a.projectId)?.name || '',
-      planned: a.planned, actual: a.actual, pct: calcProductivity(a.planned, a.actual),
-    }));
-  });
+  const velocityData = Object.keys(sprintGrouped).map(name => ({
+    sprint: name.replace('Sprint ', ''),
+    Actual: sprintGrouped[name]
+  }));
+
+  const tableData = ra.map((a: any) => ({
+    key: a.id,
+    sprint: a.sprint?.name,
+    project: a.project?.name,
+    planned: a.planned_points,
+    actual: a.actual_points,
+    pct: calcProductivity(a.planned_points, a.actual_points),
+  }));
 
   return (
     <div>

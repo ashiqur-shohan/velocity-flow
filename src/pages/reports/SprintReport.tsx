@@ -1,56 +1,55 @@
 import { useEffect, useState } from 'react';
 import { Select, Card, Table, Skeleton, Button } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getSprints, getProjects, getResources, getAllocations, getGoals } from '@/services/api';
+import { useSprints } from '@/hooks/useSprint';
+import { useProjects } from '@/hooks/useProjects';
+import { useResources } from '@/hooks/useResources';
+import { useSprintReport } from '@/hooks/useReports';
 import { PageHeader, ProductivityBadge, MiniProgress, GoalStatusTag } from '@/components/shared';
 import { calcProductivity } from '@/utils/helpers';
 import type { Sprint, Project, Resource, PointAllocation, SprintGoal } from '@/types';
 import { Download } from 'lucide-react';
 
 const SprintReport = () => {
-  const [loading, setLoading] = useState(true);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
+  const { sprints, loading: sprintsLoading } = useSprints();
+  const { projects, loading: projectsLoading } = useProjects();
+  const { resources, loading: resourcesLoading } = useResources();
   const [selectedSprint, setSelectedSprint] = useState('');
-  const [allocations, setAllocations] = useState<PointAllocation[]>([]);
-  const [goals, setGoals] = useState<SprintGoal[]>([]);
+  
+  const { data, loading: reportLoading } = useSprintReport(selectedSprint);
 
   useEffect(() => {
-    const load = async () => {
-      const [s, p, r] = await Promise.all([getSprints(), getProjects(), getResources()]);
-      setSprints(s); setProjects(p); setResources(r);
-      if (s.length > 0) setSelectedSprint(s[0].id);
-      setLoading(false);
-    };
-    load();
-  }, []);
+    if (!sprintsLoading && sprints.length > 0 && !selectedSprint) {
+      setSelectedSprint(sprints[0].id);
+    }
+  }, [sprints, sprintsLoading, selectedSprint]);
 
-  useEffect(() => {
-    if (!selectedSprint) return;
-    Promise.all([getAllocations(selectedSprint), getGoals(selectedSprint)]).then(([a, g]) => { setAllocations(a); setGoals(g); });
-  }, [selectedSprint]);
+  const loading = sprintsLoading || projectsLoading || resourcesLoading || reportLoading;
 
-  if (loading) return <Skeleton active />;
+  if (loading || !data) return <Skeleton active />;
 
-  const totalPlanned = allocations.reduce((s, a) => s + a.planned, 0);
-  const totalActual = allocations.reduce((s, a) => s + a.actual, 0);
+  const goals = data.goals || [];
+  const projectSummary = data.projectSummary || [];
+  const resourceProductivity = data.resourceProductivity || [];
+  
+  const totalPlanned = projectSummary.reduce((s: number, p: any) => s + (p.planned || 0), 0);
+  const totalActual = projectSummary.reduce((s: number, p: any) => s + (p.actual || 0), 0);
   const pct = calcProductivity(totalPlanned, totalActual);
-  const goalsComplete = goals.filter(g => g.status === 'Complete').length;
+  const goalsComplete = goals.filter((g: any) => g.status === 'Complete').length;
 
-  const chartData = projects.map(p => {
-    const pa = allocations.filter(a => a.projectId === p.id);
-    const planned = pa.reduce((s, a) => s + a.planned, 0);
-    const actual = pa.reduce((s, a) => s + a.actual, 0);
-    return planned > 0 ? { name: p.name, Planned: planned, Actual: actual } : null;
-  }).filter(Boolean);
+  const chartData = projectSummary.map((p: any) => ({
+    name: p.project_name,
+    Planned: p.planned,
+    Actual: p.actual
+  }));
 
-  const resourceData = resources.filter(r => r.active).map(r => {
-    const ra = allocations.filter(a => a.resourceId === r.id);
-    const planned = ra.reduce((s, a) => s + a.planned, 0);
-    const actual = ra.reduce((s, a) => s + a.actual, 0);
-    return { key: r.id, name: r.name, planned, actual, pct: calcProductivity(planned, actual) };
-  }).filter(r => r.planned > 0);
+  const resourceTableData = resourceProductivity.map((r: any) => ({
+    key: r.resource_id,
+    name: r.resource_name,
+    planned: r.planned,
+    actual: r.actual,
+    pct: r.productivity_pct
+  }));
 
   return (
     <div>
@@ -71,18 +70,18 @@ const SprintReport = () => {
           </ResponsiveContainer>
         </Card>
         <Card title="Resource Productivity" className="!rounded-lg">
-          <Table dataSource={resourceData} pagination={false} size="small" columns={[
+          <Table dataSource={resourceTableData} pagination={false} size="small" columns={[
             { title: 'Resource', dataIndex: 'name' }, { title: 'Planned', dataIndex: 'planned', width: 70 },
-            { title: 'Actual', dataIndex: 'actual', width: 70 }, { title: '%', key: 'pct', render: (_, r) => <ProductivityBadge value={r.pct} /> },
+            { title: 'Actual', dataIndex: 'actual', width: 70 }, { title: '%', key: 'pct', render: (_, r: any) => <ProductivityBadge value={r.pct} /> },
           ]} />
         </Card>
       </div>
       <Card title="Sprint Goals" className="!rounded-lg">
-        <Table dataSource={goals.map(g => ({ ...g, key: g.id }))} pagination={false} size="small" columns={[
-          { title: 'Project', key: 'project', render: (_, g) => projects.find(p => p.id === g.projectId)?.name },
+        <Table dataSource={goals.map((g: any) => ({ ...g, key: g.id }))} pagination={false} size="small" columns={[
+          { title: 'Project', key: 'project', render: (_, g: any) => g.project?.name || '—' },
           { title: 'Goal', dataIndex: 'goal' },
-          { title: 'Status', key: 'status', render: (_, g) => <GoalStatusTag status={g.status} /> },
-          { title: '% Done', key: 'pct', render: (_, g) => <MiniProgress value={g.percentDone} /> },
+          { title: 'Status', key: 'status', render: (_, g: any) => <GoalStatusTag status={g.status} /> },
+          { title: '% Done', key: 'pct', render: (_, g: any) => <MiniProgress value={g.percent_done || g.percentDone} /> },
         ]} />
       </Card>
     </div>

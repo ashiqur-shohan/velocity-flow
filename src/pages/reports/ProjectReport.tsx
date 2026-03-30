@@ -1,51 +1,68 @@
 import { useEffect, useState } from 'react';
 import { Select, Card, Table, Skeleton } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from 'recharts';
-import { getSprints, getProjects, getResources, getAllocations, getGoals } from '@/services/api';
+import { useProjects } from '@/hooks/useProjects';
+import { useSprints } from '@/hooks/useSprint';
+import { useResources } from '@/hooks/useResources';
+import { useProjectReportHook } from '@/hooks/useReports';
+import { getProjectGoals } from '@/services/goalService';
 import { PageHeader, ProductivityBadge, GoalStatusTag } from '@/components/shared';
 import { calcProductivity } from '@/utils/helpers';
 import type { Sprint, Project, Resource, PointAllocation, SprintGoal } from '@/types';
 
 const ProjectReport = () => {
-  const [loading, setLoading] = useState(true);
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [allocations, setAllocations] = useState<PointAllocation[]>([]);
-  const [goals, setGoals] = useState<SprintGoal[]>([]);
+  const { sprints, loading: sprintsLoading } = useSprints();
+  const { projects, loading: projectsLoading } = useProjects();
   const [selectedProject, setSelectedProject] = useState('');
+  const { resources, loading: resourcesLoading } = useResources();
+  const { data: allocations, loading: reportLoading } = useProjectReportHook(selectedProject);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [loadingGoals, setLoadingGoals] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      const [s, p, r, a, g] = await Promise.all([getSprints(), getProjects(), getResources(), getAllocations(), getGoals()]);
-      setSprints(s); setProjects(p); setResources(r); setAllocations(a); setGoals(g);
-      if (p.length > 0) setSelectedProject(p[0].id);
-      setLoading(false);
-    };
-    load();
-  }, []);
+    if (!projectsLoading && projects.length > 0 && !selectedProject) {
+      setSelectedProject(projects[0].id);
+    }
+  }, [projects, projectsLoading, selectedProject]);
 
-  if (loading) return <Skeleton active />;
+  useEffect(() => {
+    if (!selectedProject) return;
+    setLoadingGoals(true);
+    getProjectGoals(selectedProject).then(g => { setGoals(g); setLoadingGoals(false); });
+  }, [selectedProject]);
 
-  const pa = allocations.filter(a => a.projectId === selectedProject);
-  const pg = goals.filter(g => g.projectId === selectedProject);
-  const sprintIds = [...new Set(pa.map(a => a.sprintId))];
-  const totalPlanned = pa.reduce((s, a) => s + a.planned, 0);
-  const totalActual = pa.reduce((s, a) => s + a.actual, 0);
+  const loading = sprintsLoading || projectsLoading || resourcesLoading || reportLoading || loadingGoals;
+
+  if (loading || !allocations) return <Skeleton active />;
+
+  const pa = allocations;
+  const pg = goals;
+  const sprintIds = [...new Set(pa.map((a: any) => a.sprint_id))];
+  const totalPlanned = pa.reduce((s: number, a: any) => s + (a.planned_points || 0), 0);
+  const totalActual = pa.reduce((s: number, a: any) => s + (a.actual_points || 0), 0);
 
   const chartData = sprints.map(s => {
-    const sa = pa.filter(a => a.sprintId === s.id);
-    const planned = sa.reduce((sum, a) => sum + a.planned, 0);
-    const actual = sa.reduce((sum, a) => sum + a.actual, 0);
+    const sa = pa.filter((a: any) => a.sprint_id === s.id);
+    const planned = sa.reduce((sum: number, a: any) => sum + (a.planned_points || 0), 0);
+    const actual = sa.reduce((sum: number, a: any) => sum + (a.actual_points || 0), 0);
     return planned > 0 ? { sprint: s.name.replace('Sprint ', ''), Planned: planned, Actual: actual } : null;
   }).filter(Boolean);
 
-  const resourceData = resources.filter(r => r.active).map(r => {
-    const ra = pa.filter(a => a.resourceId === r.id);
-    const planned = ra.reduce((s, a) => s + a.planned, 0);
-    const actual = ra.reduce((s, a) => s + a.actual, 0);
-    return planned > 0 ? { key: r.id, name: r.name, planned, actual, pct: calcProductivity(planned, actual) } : null;
-  }).filter(Boolean) as { key: string; name: string; planned: number; actual: number; pct: number }[];
+  // Group by resource for contributions
+  const resourceGrouped = pa.reduce((acc: any, a: any) => {
+    const rName = a.resource?.name || 'Unknown';
+    if (!acc[rName]) acc[rName] = { planned: 0, actual: 0 };
+    acc[rName].planned += (a.planned_points || 0);
+    acc[rName].actual += (a.actual_points || 0);
+    return acc;
+  }, {});
+
+  const resourceData = Object.keys(resourceGrouped).map(name => ({
+    name,
+    planned: resourceGrouped[name].planned,
+    actual: resourceGrouped[name].actual,
+    pct: calcProductivity(resourceGrouped[name].planned, resourceGrouped[name].actual)
+  }));
 
   return (
     <div>

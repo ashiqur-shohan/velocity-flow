@@ -21,29 +21,33 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route element={<PageShell />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/sprints" element={<SprintList />} />
-            <Route path="/sprints/new" element={<SprintForm />} />
-            <Route path="/sprints/:id" element={<SprintDetail />} />
-            <Route path="/sprints/:id/edit" element={<SprintForm />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/reports" element={<ReportsHub />} />
-            <Route path="/reports/sprint" element={<SprintReport />} />
-            <Route path="/reports/resource" element={<ResourceReport />} />
-            <Route path="/reports/project" element={<ProjectReport />} />
-            <Route path="/settings" element={<OrgSettings />} />
-            <Route path="/settings/members" element={<Members />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<PageShell />}>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/sprints" element={<SprintList />} />
+              <Route path="/sprints/new" element={<SprintForm />} />
+              <Route path="/sprints/:id" element={<SprintDetail />} />
+              <Route path="/sprints/:id/edit" element={<SprintForm />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/resources" element={<Resources />} />
+              <Route path="/reports" element={<ReportsHub />} />
+              <Route path="/reports/sprint" element={<SprintReport />} />
+              <Route path="/reports/resource" element={<ResourceReport />} />
+              <Route path="/reports/project" element={<ProjectReport />} />
+              <Route path="/settings" element={<OrgSettings />} />
+              <Route path="/settings/members" element={<Members />} />
+            </Route>
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
