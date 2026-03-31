@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Button, Skeleton, Popover, InputNumber, Select, Table, Input, message, Tooltip } from 'antd';
 import { Plus, Pencil } from 'lucide-react';
 import { getSprintById, getProjects, getResources, getAllocations, getGoals, upsertAllocation, updateGoal, createGoal, deleteGoal } from '@/services/api';
-import { PageHeader, SprintStatusTag, ProductivityBadge, GoalStatusTag, MiniProgress, ResourceAvatar } from '@/components/shared';
+import { PageHeader, SprintStatusTag, ProductivityBadge, GoalStatusTag, MiniProgress, ResourceAvatar, ResourceSprintComment } from '@/components/shared';
+import { getSprintResourceComments, upsertSprintResourceComment, type SprintResourceComment } from '@/services/commentService';
 import { formatDateRange, calcProductivity } from '@/utils/helpers';
 import { GOAL_STATUSES, ALLOCATION_STATUSES, getProductivityColor } from '@/constants';
 import type { Sprint, Project, Resource, PointAllocation, SprintGoal } from '@/types';
@@ -18,17 +19,19 @@ const SprintDetail = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [allocations, setAllocations] = useState<PointAllocation[]>([]);
   const [goals, setGoals] = useState<SprintGoal[]>([]);
+  const [comments, setComments] = useState<SprintResourceComment[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [s, prj, res, alloc, gl] = await Promise.all([
-      getSprintById(id), getProjects(), getResources(), getAllocations(id), getGoals(id),
+    const [s, prj, res, alloc, gl, cmts] = await Promise.all([
+      getSprintById(id), getProjects(), getResources(), getAllocations(id), getGoals(id), getSprintResourceComments(id)
     ]);
     setSprint(s);
     setProjects(prj);
     setResources(res.filter(r => r.active));
     setAllocations(alloc);
     setGoals(gl);
+    setComments(cmts);
     setLoading(false);
   }, [id]);
 
@@ -76,6 +79,8 @@ const SprintDetail = () => {
                 totalPlanned={totalPlanned}
                 totalActual={totalActual}
                 overallPct={overallPct}
+                comments={comments}
+                setComments={setComments}
               />
             ),
           },
@@ -94,11 +99,12 @@ const SprintDetail = () => {
 
 // Point Allocation Grid
 const AllocationGrid = ({
-  sprint, projects, allProjects, resources, allResources, allocations, setAllocations, totalPlanned, totalActual, overallPct,
+  sprint, projects, allProjects, resources, allResources, allocations, setAllocations, totalPlanned, totalActual, overallPct, comments, setComments
 }: {
   sprint: Sprint; projects: Project[]; allProjects: Project[]; resources: Resource[]; allResources: Resource[];
   allocations: PointAllocation[]; setAllocations: (a: PointAllocation[]) => void;
   totalPlanned: number; totalActual: number; overallPct: number;
+  comments: SprintResourceComment[]; setComments: (c: SprintResourceComment[]) => void;
 }) => {
   const [editCell, setEditCell] = useState<{ projectId: string; resourceId: string } | null>(null);
   const [editPlanned, setEditPlanned] = useState(0);
@@ -170,14 +176,33 @@ const AllocationGrid = ({
         <thead>
           <tr>
             <th className="text-left p-3 bg-muted font-semibold border border-border min-w-[180px]">Project</th>
-            {localResources.map(r => (
-              <th key={r.id} className="text-center p-3 bg-muted font-semibold border border-border min-w-[100px]">
-                <div className="flex flex-col items-center gap-1">
-                  <ResourceAvatar name={r.name} size={28} />
-                  <span className="text-xs">{r.name}</span>
-                </div>
-              </th>
-            ))}
+            {localResources.map(r => {
+              const rComment = comments.find(c => c.resource_id === r.id)?.comment || '';
+              return (
+                <th key={r.id} className="text-center p-3 bg-muted font-semibold border border-border min-w-[140px] align-top">
+                  <div className="flex flex-col items-center gap-1 text-center">
+                    <ResourceSprintComment 
+                      sprintId={sprint.id}
+                      resourceId={r.id}
+                      comment={rComment}
+                      onSave={async (text) => {
+                        const newCmt = await upsertSprintResourceComment(sprint.id, r.id, text);
+                        if (newCmt) {
+                          const idx = comments.findIndex(c => c.resource_id === r.id);
+                          if (idx >= 0) {
+                            setComments([...comments.slice(0, idx), newCmt, ...comments.slice(idx + 1)]);
+                          } else {
+                            setComments([...comments, newCmt]);
+                          }
+                        }
+                      }}
+                    />
+                    <ResourceAvatar name={r.name} size={28} />
+                    <span className="text-xs">{r.name}</span>
+                  </div>
+                </th>
+              );
+            })}
             <th className="text-center p-3 bg-muted font-bold border border-border min-w-[100px]">Total</th>
           </tr>
         </thead>
