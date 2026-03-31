@@ -1,9 +1,10 @@
-import type { Sprint, Project, Resource, PointAllocation, SprintGoal, Member } from '@/types';
+import type { Sprint, Project, Resource, PointAllocation, SprintGoal, Member, SprintChangelog } from '@/types';
 
 export const mockSprints: Sprint[] = [
   { id: 's1', name: 'Sprint Feb 22 – Mar 25', startDate: '2026-02-22', endDate: '2026-03-25', status: 'Active', lengthDays: 31 },
   { id: 's2', name: 'Sprint Jan 15 – Feb 18', startDate: '2026-01-15', endDate: '2026-02-18', status: 'Completed', lengthDays: 34 },
   { id: 's3', name: 'Sprint Mar 26 – Apr 25', startDate: '2026-03-26', endDate: '2026-04-25', status: 'Planning', lengthDays: 30 },
+  { id: 's4', name: 'Sprint May 1 – May 30', startDate: '2026-05-01', endDate: '2026-05-30', status: 'Planning', lengthDays: 30 },
 ];
 
 export const mockProjects: Project[] = [
@@ -49,6 +50,12 @@ export const mockAllocations: PointAllocation[] = [
   { id: 'a14', sprintId: 's2', projectId: 'p1', resourceId: 'r3', planned: 25, actual: 25, status: 'Complete' },
   { id: 'a15', sprintId: 's2', projectId: 'p4', resourceId: 'r4', planned: 20, actual: 18, status: 'Complete' },
   { id: 'a16', sprintId: 's2', projectId: 'p4', resourceId: 'r5', planned: 10, actual: 10, status: 'Complete' },
+  { id: 'a17', sprintId: 's2', projectId: 'p2', resourceId: 'r2', planned: 15, actual: 15, status: 'Complete' },
+  // Sprint 3 allocations
+  { id: 'a18', sprintId: 's3', projectId: 'p1', resourceId: 'r1', planned: 30, actual: 0, status: 'Not Started' },
+  { id: 'a19', sprintId: 's3', projectId: 'p1', resourceId: 'r2', planned: 20, actual: 0, status: 'Not Started' },
+  { id: 'a20', sprintId: 's3', projectId: 'p3', resourceId: 'r4', planned: 40, actual: 0, status: 'Not Started' },
+  { id: 'a21', sprintId: 's3', projectId: 'p6', resourceId: 'r5', planned: 25, actual: 0, status: 'Not Started' },
 ];
 
 export const mockGoals: SprintGoal[] = [
@@ -61,6 +68,9 @@ export const mockGoals: SprintGoal[] = [
   { id: 'g7', sprintId: 's1', projectId: 'p6', goal: 'Patient Booking Flow', status: 'In Progress', ownerId: 'r5', bugsIdentified: 1, percentDone: 75, deliverables: 'Booking calendar, patient form, confirmation emails', isHighlighted: false },
   { id: 'g8', sprintId: 's2', projectId: 'p1', goal: 'Property Listing Module', status: 'Complete', ownerId: 'r1', bugsIdentified: 1, percentDone: 100, deliverables: 'Property CRUD, image uploads, filtering', isHighlighted: false },
   { id: 'g9', sprintId: 's2', projectId: 'p4', goal: 'Appointment Scheduling', status: 'Complete', ownerId: 'r4', bugsIdentified: 2, percentDone: 100, deliverables: 'Calendar view, booking system, notifications', isHighlighted: false },
+  { id: 'g10', sprintId: 's2', projectId: 'p2', goal: 'Database Design and Init', status: 'Complete', ownerId: 'r2', bugsIdentified: 0, percentDone: 100, deliverables: 'Schema design, migration scripts', isHighlighted: false },
+  { id: 'g11', sprintId: 's3', projectId: 'p1', goal: 'Tenant Portal Dashboard', status: 'Not Started', ownerId: 'r1', bugsIdentified: 0, percentDone: 0, deliverables: 'Dashboard UI, overview statistics', isHighlighted: false },
+  { id: 'g12', sprintId: 's3', projectId: 'p6', goal: 'HIPAA Compliance Audit fixes', status: 'Not Started', ownerId: 'r5', bugsIdentified: 0, percentDone: 0, deliverables: 'Data encryption at rest, audit logs', isHighlighted: false },
 ];
 
 export const mockMembers: Member[] = [
@@ -69,4 +79,9 @@ export const mockMembers: Member[] = [
   { id: 'm3', name: 'Tarek Hassan', email: 'tarek@velotrack.io', role: 'Developer', joinedDate: '2025-02-15' },
   { id: 'm4', name: 'Mirza Rahman', email: 'mirza@velotrack.io', role: 'Developer', joinedDate: '2025-03-01' },
   { id: 'm5', name: 'Shohan Ali', email: 'shohan@velotrack.io', role: 'Developer', joinedDate: '2025-03-10' },
+];
+
+export const mockChangelogs: SprintChangelog[] = [
+  { id: 'cl1', sprintId: 's1', date: '2026-02-24', projectId: 'p1', description: '3 points added to Tarek', type: 'Task', trackingId: '1812', pointsUpdate: 3, finalSprintPoints: 93 },
+  { id: 'cl2', sprintId: 's1', date: '2026-02-24', projectId: 'p4', description: '2 points deducted from shohan', type: 'CR', trackingId: '198', pointsUpdate: 2, finalSprintPoints: 5 },
 ];

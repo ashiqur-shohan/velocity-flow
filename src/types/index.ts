@@ -56,3 +56,15 @@ export interface Member {
   role: MemberRole;
   joinedDate: string;
 }
+
+export interface SprintChangelog {
+  id: string;
+  sprintId: string;
+  date: string;
+  projectId: string;
+  description: string;
+  type: string;
+  trackingId: string;
+  pointsUpdate: number;
+  finalSprintPoints: number;
+}

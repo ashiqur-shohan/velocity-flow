@@ -1,5 +1,5 @@
-import { mockSprints, mockProjects, mockResources, mockAllocations, mockGoals, mockMembers } from './mockData';
-import type { Sprint, Project, Resource, PointAllocation, SprintGoal, Member } from '@/types';
+import { mockSprints, mockProjects, mockResources, mockAllocations, mockGoals, mockMembers, mockChangelogs } from './mockData';
+import type { Sprint, Project, Resource, PointAllocation, SprintGoal, Member, SprintChangelog } from '@/types';
 
 const delay = (ms = 400) => new Promise(r => setTimeout(r, ms));
 
@@ -34,3 +34,9 @@ export const deleteGoal = async (id: string): Promise<void> => { await delay(); 
 export const getMembers = async (): Promise<Member[]> => { await delay(); return [...mockMembers]; };
 export const createMember = async (data: Omit<Member, 'id'>): Promise<Member> => { await delay(); const m = { ...data, id: `m${Date.now()}` }; mockMembers.push(m); return m; };
 export const updateMember = async (id: string, data: Partial<Member>): Promise<Member> => { await delay(); const i = mockMembers.findIndex(m => m.id === id); Object.assign(mockMembers[i], data); return mockMembers[i]; };
+
+// Changelogs
+export const getChangelogs = async (sprintId?: string): Promise<SprintChangelog[]> => { await delay(); return sprintId ? mockChangelogs.filter(c => c.sprintId === sprintId) : [...mockChangelogs]; };
+export const createChangelog = async (data: Omit<SprintChangelog, 'id'>): Promise<SprintChangelog> => { await delay(); const c = { ...data, id: `cl${Date.now()}` }; mockChangelogs.push(c); return c; };
+export const updateChangelog = async (id: string, data: Partial<SprintChangelog>): Promise<SprintChangelog> => { await delay(); const i = mockChangelogs.findIndex(c => c.id === id); Object.assign(mockChangelogs[i], data); return mockChangelogs[i]; };
+export const deleteChangelog = async (id: string): Promise<void> => { await delay(); const i = mockChangelogs.findIndex(c => c.id === id); if (i >= 0) mockChangelogs.splice(i, 1); };
