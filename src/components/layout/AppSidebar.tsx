@@ -1,6 +1,6 @@
 import { Layout, Menu } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Zap, FolderOpen, Users, BarChart3, Settings, FileText, UserCog } from 'lucide-react';
+import { LayoutDashboard, Zap, FolderOpen, Users, BarChart3, Settings, FileText, UserCog, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 
 const { Sider } = Layout;
@@ -9,6 +9,7 @@ const AppSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const collapsed = useAppStore(s => s.sidebarCollapsed);
+  const toggleSidebar = useAppStore(s => s.toggleSidebar);
 
   const menuItems = [
     { key: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
@@ -45,16 +46,27 @@ const AppSidebar = () => {
       className="fixed left-0 top-0 bottom-0 z-50"
       style={{ background: '#0F172A', borderRight: '1px solid #1E293B' }}
     >
-      <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-        {!collapsed && (
-          <span className="text-xl font-bold tracking-tight" style={{ color: '#818CF8' }}>
-            <span style={{ color: '#818CF8' }}>Zeus</span>
-          </span>
-        )}
-        {collapsed && (
-          <div className="w-full flex justify-center">
+      <div className={`h-16 flex items-center border-b border-sidebar-border transition-all duration-300 ${collapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
+        <div className={`flex items-center gap-2 overflow-hidden ${collapsed ? 'w-auto' : 'w-full'}`}>
+          <button 
+            onClick={collapsed ? toggleSidebar : undefined}
+            className={`transition-all duration-500 transform outline-none border-none bg-transparent p-0 ${collapsed ? 'scale-110 cursor-pointer hover:brightness-125 flex items-center justify-center' : 'scale-100 rotate-[360deg] cursor-default'}`}
+          >
             <Zap size={24} fill="#818CF8" style={{ color: '#818CF8' }} />
-          </div>
+          </button>
+          {!collapsed && (
+            <span className="text-xl font-bold tracking-tight text-[#818CF8] whitespace-nowrap animate-in fade-in slide-in-from-left-4 duration-500">
+              Zeus
+            </span>
+          )}
+        </div>
+        {!collapsed && (
+          <button 
+            onClick={toggleSidebar} 
+            className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
         )}
       </div>
       <Menu

@@ -6,12 +6,9 @@ const TopBar = () => {
   const toggleSidebar = useAppStore(s => s.toggleSidebar);
 
   return (
-    <Layout.Header className="flex items-center justify-between px-6 bg-card border-b border-border" style={{ height: 64, lineHeight: '64px', padding: '0 24px' }}>
+    <Layout.Header className="flex items-center justify-between px-6 bg-card border-b border-border" style={{ height: 64, lineHeight: '64px', padding: '0 24px', position: 'sticky', top: 0, zIndex: 40 }}>
       <div className="flex items-center gap-3">
-        <button onClick={toggleSidebar} className="p-2 rounded-md hover:bg-muted transition-colors">
-          <Menu size={20} className="text-muted-foreground" />
-        </button>
-        {/* <span className="text-sm font-medium text-muted-foreground">Ze</span> */}
+        {/* <span className="text-sm font-medium text-muted-foreground">Zeus Organization</span> */}
       </div>
       <div className="flex items-center gap-4">
         <Badge count={3} size="small">
