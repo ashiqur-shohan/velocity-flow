@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Button, Skeleton, Popover, InputNumber, Select, Table, Input, message, Tooltip, Modal, Tag } from 'antd';
 import { Plus, Pencil, Calendar as CalendarIcon } from 'lucide-react';
-import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { LockOutlined, CheckCircleOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover as ShadcnPopover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -86,6 +86,14 @@ const SprintDetail = () => {
 
   return (
     <div>
+      <Button
+        icon={<ArrowLeftOutlined />}
+        type="text"
+        onClick={() => navigate('/sprints')}
+        className="mb-4"
+      >
+        Back to Sprints
+      </Button>
       <PageHeader
         title={sprint.name}
         subtitle={formatDateRange(sprint.startDate, sprint.endDate)}
