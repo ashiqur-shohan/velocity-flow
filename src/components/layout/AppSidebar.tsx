@@ -48,10 +48,14 @@ const AppSidebar = () => {
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
         {!collapsed && (
           <span className="text-xl font-bold tracking-tight" style={{ color: '#818CF8' }}>
-            Velo<span style={{ color: '#F8FAFC' }}>Track</span>
+            <span style={{ color: '#818CF8' }}>Zeus</span>
           </span>
         )}
-        {collapsed && <span className="text-xl font-bold" style={{ color: '#818CF8' }}>V</span>}
+        {collapsed && (
+          <div className="w-full flex justify-center">
+            <Zap size={24} fill="#818CF8" style={{ color: '#818CF8' }} />
+          </div>
+        )}
       </div>
       <Menu
         mode="inline"

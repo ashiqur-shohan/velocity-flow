@@ -11,7 +11,7 @@ const TopBar = () => {
         <button onClick={toggleSidebar} className="p-2 rounded-md hover:bg-muted transition-colors">
           <Menu size={20} className="text-muted-foreground" />
         </button>
-        <span className="text-sm font-medium text-muted-foreground">VeloTrack Organization</span>
+        {/* <span className="text-sm font-medium text-muted-foreground">Ze</span> */}
       </div>
       <div className="flex items-center gap-4">
         <Badge count={3} size="small">
