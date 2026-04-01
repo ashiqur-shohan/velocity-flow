@@ -10,6 +10,7 @@ import SprintList from "@/pages/sprints/SprintList";
 import SprintForm from "@/pages/sprints/SprintForm";
 import SprintDetail from "@/pages/sprints/SprintDetail";
 import Projects from "@/pages/projects/Projects";
+import ProjectDetailPage from "@/pages/projects/ProjectDetailPage";
 import Resources from "@/pages/resources/Resources";
 import ReportsHub from "@/pages/reports/ReportsHub";
 import SprintReport from "@/pages/reports/SprintReport";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/sprints/:id" element={<SprintDetail />} />
             <Route path="/sprints/:id/edit" element={<SprintForm />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/resources" element={<Resources />} />
             <Route path="/reports" element={<ReportsHub />} />
             <Route path="/reports/sprint" element={<SprintReport />} />
